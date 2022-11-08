@@ -16,13 +16,13 @@ jobs:
 
       - name: Build
         run: |
-          docker build --pull -t kooldev/php:8.0-nginx-swoole 8.0-nginx-swoole
-          docker build --pull -t kooldev/php:8.0-nginx-swoole-prod 8.0-nginx-swoole-prod
+          docker build --pull -t kooldev/php:${{ matrix.version }}-nginx-swoole ${{ matrix.version }}-nginx-swoole
+          docker build --pull -t kooldev/php:${{ matrix.version }}-nginx-swoole-prod ${{ matrix.version }}-nginx-swoole-prod
 
       - name: Tests
         run: |
-          docker run kooldev/php:8.0-nginx-swoole php -r "extension_loaded('swoole') or die(1);"
-          docker run kooldev/php:8.0-nginx-swoole-prod php -r "extension_loaded('swoole') or die(1);"
+          docker run kooldev/php:${{ matrix.version }}-nginx-swoole php -r "extension_loaded('swoole') or die(1);"
+          docker run kooldev/php:${{ matrix.version }}-nginx-swoole-prod php -r "extension_loaded('swoole') or die(1);"
 
       - name: Login to DockerHub
         uses: docker/login-action@v1.9.0
@@ -34,5 +34,5 @@ jobs:
       - name: Push to DockerHub
         if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
         run: |
-          docker push kooldev/php:8.0-nginx-swoole
-          docker push kooldev/php:8.0-nginx-swoole-prod
+          docker push kooldev/php:${{ matrix.version }}-nginx-swoole
+          docker push kooldev/php:${{ matrix.version }}-nginx-swoole-prod
