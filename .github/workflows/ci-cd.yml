@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Trigger build on kool-dev/docker-php-oci8
         uses: benc-uk/workflow-dispatch@v1.1
-        if: github.ref == 'refs/heads/master' && github.repository == 'kool-dev/docker-php-swoole'
+        if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
         with:
           workflow: CI/CD
           repo: kool-dev/docker-php-oci8
