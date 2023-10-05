@@ -1,4 +1,4 @@
-FROM kooldev/php:8.0-nginx-prod
+FROM kooldev/php:8.2-nginx
 
 RUN apk add libpq libpq-dev curl-dev
 
