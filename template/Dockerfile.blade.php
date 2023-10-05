@@ -2,7 +2,8 @@ FROM {{ $from }}
 
 RUN apk add libpq libpq-dev curl-dev
 
-RUN docker-php-ext-install sockets && \
+RUN apk add --no-cache --virtual .build-deps linux-headers && \
+    docker-php-ext-install sockets && \
     docker-php-source extract && \
     mkdir /usr/src/php/ext/swoole && \
     curl -sfL https://github.com/swoole/swoole-src/archive/v5.1.0.tar.gz -o swoole.tar.gz && \
@@ -12,4 +13,7 @@ RUN docker-php-ext-install sockets && \
         --enable-swoole-pgsql \
         --enable-openssl      \
         --enable-sockets --enable-swoole-curl && \
-    docker-php-ext-install -j$(nproc) swoole
+    docker-php-ext-install -j$(nproc) swoole && \
+    # cleanup
+    apk del .build-deps && \
+    rm -rf /var/cache/apk/* /tmp/*
