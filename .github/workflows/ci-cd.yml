@@ -1,6 +1,6 @@
 name: CI/CD
 
-on: [push, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   DOCKER_BUILDKIT: 1
