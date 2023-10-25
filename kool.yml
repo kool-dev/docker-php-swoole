@@ -3,9 +3,9 @@ scripts:
     - kool docker fireworkweb/fwd:v1.0 fwd template
   build:
     - kool run template
-    - docker build --pull -t kooldev/php:8.0-nginx-swoole 8.0-nginx-swoole
+    - docker build --pull -t kooldev/php:8.0-swoole 8.0-swoole
     - docker build --pull -t kooldev/php:8.0-nginx-swoole-prod 8.0-nginx-swoole-prod
-    - docker build --pull -t kooldev/php:8.1-nginx-swoole 8.1-nginx-swoole
+    - docker build --pull -t kooldev/php:8.1-swoole 8.1-swoole
     - docker build --pull -t kooldev/php:8.1-nginx-swoole-prod 8.1-nginx-swoole-prod
-    - docker build --pull -t kooldev/php:8.2-nginx-swoole 8.2-nginx-swoole
+    - docker build --pull -t kooldev/php:8.2-swoole 8.2-swoole
     - docker build --pull -t kooldev/php:8.2-nginx-swoole-prod 8.2-nginx-swoole-prod
