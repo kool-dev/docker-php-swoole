@@ -8,18 +8,18 @@ This image is based on [kooldev/php](https://github.com/kool-dev/docker-php), pl
 
 ### 8.0
 
-- [8.0-nginx-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.0-nginx-swoole/Dockerfile)
+- [8.0-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.0-swoole/Dockerfile)
 - [8.0-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.0-nginx-swoole-prod/Dockerfile)
 
 
 ### 8.1
 
-- [8.1-nginx-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.1-nginx-swoole/Dockerfile)
+- [8.1-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.1-swoole/Dockerfile)
 - [8.1-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.1-nginx-swoole-prod/Dockerfile)
 
 ### 8.2
 
-- [8.2-nginx-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.2-nginx-swoole/Dockerfile)
+- [8.2-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.2-swoole/Dockerfile)
 - [8.2-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.2-nginx-swoole-prod/Dockerfile)
 
 
