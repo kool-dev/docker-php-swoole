@@ -72,6 +72,31 @@
                     "path": "template/Dockerfile"
                 }
             ]
+        },
+
+        {
+            "name": "8.3-swoole",
+            "data": {
+                "from": "kooldev/php:8.3-node"
+            },
+            "files": [
+                {
+                    "name": "Dockerfile",
+                    "path": "template/Dockerfile"
+                }
+            ]
+        },
+        {
+            "name": "8.3-nginx-swoole-prod",
+            "data": {
+                "from": "kooldev/php:8.3-nginx-prod"
+            },
+            "files": [
+                {
+                    "name": "Dockerfile",
+                    "path": "template/Dockerfile"
+                }
+            ]
         }
     ]
 }
