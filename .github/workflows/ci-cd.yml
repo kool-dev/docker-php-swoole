@@ -45,20 +45,20 @@ jobs:
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
           build-contexts: |
-            ${{ matrix.version }}${{ matrix.type }}=docker-image://localhost:5000/${{ matrix.version }}${{ matrix.type }}
+            kooldev/php:${{ matrix.version }}${{ matrix.type }}=docker-image://localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
       - name: Tests
         run: |
-          docker run kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "extension_loaded('swoole') or die(1);"
-          docker run kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "extension_loaded('swoole') or die(1);"
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
 
       - name: Tests (dev)
         if: matrix.type == ''
         run: |
-          docker run kooldev/php:${{ matrix.version }}${{ matrix.type }} node -v
-          docker run kooldev/php:${{ matrix.version }}${{ matrix.type }} yarn -v
-          docker run kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
-          docker run kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} node -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} yarn -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
