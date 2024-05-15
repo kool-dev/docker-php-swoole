@@ -6,7 +6,7 @@ stderr_logfile = /dev/stderr
 stdout_logfile = /dev/stdout
 
 [program:octane]
-command = php artisan octane:start --server=swoole --watch
+command = php artisan octane:start --server=swoole{!! $prod ? '' : ' --watch' !!}
 stopasgroup = true
 stderr_logfile = /dev/stderr
 stdout_logfile = /dev/stdout
