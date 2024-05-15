@@ -37,7 +37,7 @@ jobs:
           load: true
           tags: kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
           build-contexts: |
-            ${{ matrix.version }}${{ matrix.type }}=docker-image://${{ matrix.version }}${{ matrix.type }}:latest
+            ${{ matrix.version }}${{ matrix.type }}=docker-image://${{ matrix.version }}${{ matrix.type }}
 
       - name: Tests
         run: |
