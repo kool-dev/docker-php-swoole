@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        version: ['8.0', '8.1', '8.2', '8.3']
+        version: ['8.0-swoole', '8.1-swoole', '8.2-swoole', '8.3-swoole']
         type: ['', '-prod']
 
     steps:
