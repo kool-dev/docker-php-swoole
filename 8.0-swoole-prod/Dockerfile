@@ -1,4 +1,4 @@
-FROM kooldev/php:8.0-node
+FROM kooldev/php:8.0-prod
 
 RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS && \
     pecl install swoole && \

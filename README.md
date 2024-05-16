@@ -8,23 +8,23 @@ This image is based on [kooldev/php](https://github.com/kool-dev/docker-php), pl
 
 ### 8.3
 
-- [8.3-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.3-swoole/Dockerfile)
-- [8.3-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.3-nginx-swoole-prod/Dockerfile)
+- [8.3](https://github.com/kool-dev/docker-php-swoole/blob/master/8.3-swoole/Dockerfile) and [8.3-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.3-swoole-prod/Dockerfile)
+- [8.3-nginx](https://github.com/kool-dev/docker-php-swoole/blob/master/8.3-swoole-nginx/Dockerfile) and [8.3-nginx-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.3-swoole-nginx-prod/Dockerfile)
 
 ### 8.2
 
-- [8.2-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.2-swoole/Dockerfile)
-- [8.2-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.2-nginx-swoole-prod/Dockerfile)
+- [8.2](https://github.com/kool-dev/docker-php-swoole/blob/master/8.2-swoole/Dockerfile) and [8.2-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.2-swoole-prod/Dockerfile)
+- [8.2-nginx](https://github.com/kool-dev/docker-php-swoole/blob/master/8.2-swoole-nginx/Dockerfile) and [8.2-nginx-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.2-swoole-nginx-prod/Dockerfile)
 
 ### 8.1
 
-- [8.1-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.1-swoole/Dockerfile)
-- [8.1-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.1-nginx-swoole-prod/Dockerfile)
+- [8.1](https://github.com/kool-dev/docker-php-swoole/blob/master/8.1-swoole/Dockerfile) and [8.1-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.1-swoole-prod/Dockerfile)
+- [8.1-nginx](https://github.com/kool-dev/docker-php-swoole/blob/master/8.1-swoole-nginx/Dockerfile) and [8.1-nginx-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.1-swoole-nginx-prod/Dockerfile)
 
 ### 8.0
 
-- [8.0-swoole](https://github.com/kool-dev/docker-php-swoole/blob/main/8.0-swoole/Dockerfile)
-- [8.0-nginx-swoole-prod](https://github.com/kool-dev/docker-php-swoole/blob/main/8.0-nginx-swoole-prod/Dockerfile)
+- [8.0](https://github.com/kool-dev/docker-php-swoole/blob/master/8.0-swoole/Dockerfile) and [8.0-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.0-swoole-prod/Dockerfile)
+- [8.0-nginx](https://github.com/kool-dev/docker-php-swoole/blob/master/8.0-swoole-nginx/Dockerfile) and [8.0-nginx-prod](https://github.com/kool-dev/docker-php-swoole/blob/master/8.0-swoole-nginx-prod/Dockerfile)
 
 ## Environment Variables
 
