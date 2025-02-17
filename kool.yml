@@ -19,3 +19,7 @@ scripts:
     - docker build --pull -t kooldev/php:8.3-swoole-prod 8.3-swoole-prod
     - docker build -t kooldev/php:8.3-swoole-nginx 8.3-swoole-nginx
     - docker build -t kooldev/php:8.3-swoole-nginx-prod 8.3-swoole-nginx-prod
+    - docker build --pull -t kooldev/php:8.4-swoole 8.4-swoole
+    - docker build --pull -t kooldev/php:8.4-swoole-prod 8.4-swoole-prod
+    - docker build -t kooldev/php:8.4-swoole-nginx 8.4-swoole-nginx
+    - docker build -t kooldev/php:8.4-swoole-nginx-prod 8.4-swoole-nginx-prod
