@@ -1,3 +1,7 @@
+[supervisord]
+logfile=/dev/stdout
+nodaemon=true
+
 [program:nginx]
 depends_on = octane
 command = nginx -g "daemon off;"
