@@ -61,9 +61,9 @@ server {
     add_header X-Frame-Options "SAMEORIGIN";
 
     # basic H5BP suggestions
+    include h5bp/cross-origin/requests.conf;
     include h5bp/security/referrer-policy.conf;
     include h5bp/security/x-content-type-options.conf;
-    include h5bp/cross-origin/requests.conf;
 
     # performance enhancements (mostly for caching static data)
     include h5bp/web_performance/cache-file-descriptors.conf;
