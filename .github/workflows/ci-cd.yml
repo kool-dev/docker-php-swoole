@@ -51,6 +51,7 @@ jobs:
         run: |
           docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "extension_loaded('swoole') or die(1);"
           docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
+          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -t
 
       - name: Tests (dev)
         if: matrix.type == ''
