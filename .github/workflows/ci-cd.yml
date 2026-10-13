@@ -3,10 +3,16 @@ name: CI/CD
 on:
   push:
   workflow_dispatch:
+  pull_request:
+  repository_dispatch:
+    types: [docker-php-updated]
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
 
     services:
       registry:
@@ -16,15 +22,13 @@ jobs:
 
     strategy:
       matrix:
-        version: ['8.1-swoole', '8.2-swoole', '8.3-swoole', '8.4-swoole']
+        version: ['8.2-swoole', '8.3-swoole', '8.4-swoole', '8.5-swoole', '8.4-debian-swoole', '8.5-debian-swoole']
         type: ['', '-prod']
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.1.2
-
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: actions/checkout@v4
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -32,14 +36,14 @@ jobs:
           driver-opts: network=host # needed to push to local registry
 
       - name: Build and export to Docker
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
       - name: Build and export to Docker (nginx)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
           push: true
@@ -49,28 +53,54 @@ jobs:
 
       - name: Tests
         run: |
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "extension_loaded('swoole') or die(1);"
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -t
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "exit(extension_loaded('swoole') ? 0 : 1);"
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -t
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} supervisord --version
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} dockerize --version
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} dockerize --version
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} sh -c 'echo "{{ .Env.TEST_VAR }}" > /tmp/test.tmpl && TEST_VAR=hello dockerize -template /tmp/test.tmpl:/tmp/test.out && test "$(cat /tmp/test.out)" = hello'
+          docker run --rm -e ASUSER=1000 localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} php -r "exit(posix_getuid() === 1000 ? 0 : 1);"
+
+      - name: Test Supervisor lifecycle
+        run: bash tasks/test-supervisor.sh localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
 
       - name: Tests (dev)
         if: matrix.type == ''
         run: |
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} node -v
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} yarn -v
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
-          docker run localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} node -v
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} yarn -v
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
+          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        version: ['8.2-swoole', '8.3-swoole', '8.4-swoole', '8.5-swoole', '8.4-debian-swoole', '8.5-debian-swoole']
+        type: ['', '-prod']
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
-        if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
-        if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
           platforms: linux/amd64,linux/arm64
@@ -78,8 +108,7 @@ jobs:
           tags: kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
       - name: Build and push (nginx)
-        uses: docker/build-push-action@v5
-        if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
           platforms: linux/amd64,linux/arm64
