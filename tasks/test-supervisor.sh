@@ -32,16 +32,18 @@ chmod 644 "$fixture/artisan" "$fixture/router.php"
 container=$(docker run -d -e ASUSER=1000 -v "$fixture:/app:ro" "$image")
 ready=false
 for attempt in $(seq 1 30); do
-    if docker exec "$container" curl -fsS http://127.0.0.1/ | grep -q supervisor-ok; then
+    if docker exec "$container" curl -fsS http://127.0.0.1/ | grep supervisor-ok > /dev/null; then
         ready=true
         break
     fi
     sleep 1
 done
 [ "$ready" = true ]
-docker logs "$container" 2>&1 | grep -q 'Testing stderr logging'
+# Consume the complete log stream: grep -q can cause Docker to exit with
+# SIGPIPE (141), which fails this test under pipefail even when logs match.
+docker logs "$container" 2>&1 | grep 'Testing stderr logging' > /dev/null
 docker stop --signal SIGTERM -t 10 "$container" > /dev/null
 [ "$(docker inspect -f '{{.State.ExitCode}}' "$container")" = 0 ]
-if docker logs "$container" 2>&1 | grep -Eq 'Illegal seek|CRIT.*uncaptured'; then
+if docker logs "$container" 2>&1 | grep -E 'Illegal seek|CRIT.*uncaptured' > /dev/null; then
     exit 1
 fi
