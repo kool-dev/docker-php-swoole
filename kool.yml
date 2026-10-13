@@ -3,14 +3,6 @@ scripts:
     - kool docker fireworkweb/fwd:v1.0 fwd template
   build:
     - kool run template
-    - docker build --pull -t kooldev/php:8.0-swoole 8.0-swoole
-    - docker build --pull -t kooldev/php:8.0-swoole-prod 8.0-swoole-prod
-    - docker build -t kooldev/php:8.0-swoole-nginx 8.0-swoole-nginx
-    - docker build -t kooldev/php:8.0-swoole-nginx-prod 8.0-swoole-nginx-prod
-    - docker build --pull -t kooldev/php:8.1-swoole 8.1-swoole
-    - docker build --pull -t kooldev/php:8.1-swoole-prod 8.1-swoole-prod
-    - docker build -t kooldev/php:8.1-swoole-nginx 8.1-swoole-nginx
-    - docker build -t kooldev/php:8.1-swoole-nginx-prod 8.1-swoole-nginx-prod
     - docker build --pull -t kooldev/php:8.2-swoole 8.2-swoole
     - docker build --pull -t kooldev/php:8.2-swoole-prod 8.2-swoole-prod
     - docker build -t kooldev/php:8.2-swoole-nginx 8.2-swoole-nginx
@@ -23,3 +15,15 @@ scripts:
     - docker build --pull -t kooldev/php:8.4-swoole-prod 8.4-swoole-prod
     - docker build -t kooldev/php:8.4-swoole-nginx 8.4-swoole-nginx
     - docker build -t kooldev/php:8.4-swoole-nginx-prod 8.4-swoole-nginx-prod
+    - docker build --pull -t kooldev/php:8.5-swoole 8.5-swoole
+    - docker build --pull -t kooldev/php:8.5-swoole-prod 8.5-swoole-prod
+    - docker build -t kooldev/php:8.5-swoole-nginx 8.5-swoole-nginx
+    - docker build -t kooldev/php:8.5-swoole-nginx-prod 8.5-swoole-nginx-prod
+    - docker build --pull -t kooldev/php:8.4-debian-swoole 8.4-debian-swoole
+    - docker build --pull -t kooldev/php:8.4-debian-swoole-prod 8.4-debian-swoole-prod
+    - docker build -t kooldev/php:8.4-debian-swoole-nginx 8.4-debian-swoole-nginx
+    - docker build -t kooldev/php:8.4-debian-swoole-nginx-prod 8.4-debian-swoole-nginx-prod
+    - docker build --pull -t kooldev/php:8.5-debian-swoole 8.5-debian-swoole
+    - docker build --pull -t kooldev/php:8.5-debian-swoole-prod 8.5-debian-swoole-prod
+    - docker build -t kooldev/php:8.5-debian-swoole-nginx 8.5-debian-swoole-nginx
+    - docker build -t kooldev/php:8.5-debian-swoole-nginx-prod 8.5-debian-swoole-nginx-prod

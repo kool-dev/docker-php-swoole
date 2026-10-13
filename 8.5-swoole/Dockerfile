@@ -1,4 +1,4 @@
-FROM kooldev/php:8.1-prod
+FROM kooldev/php:8.5-node
 
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 

@@ -1,14 +1,29 @@
+[supervisord]
+logfile=/dev/stdout
+logfile_maxbytes=0
+pidfile=/run/supervisord.pid
+nodaemon=true
+user=root
+
 [program:nginx]
-depends_on = octane
 command = nginx -g "daemon off;"
+priority = 20
 autorestart = true
 stopasgroup = true
+killasgroup = true
 stderr_logfile = /dev/stderr
 stdout_logfile = /dev/stdout
+stderr_logfile_maxbytes = 0
+stdout_logfile_maxbytes = 0
 
 [program:octane]
-command = su-exec kool php artisan octane:start{!! $prod ? '' : ' --watch' !!}
+command = {{ ($debian ?? false) ? 'gosu' : 'su-exec' }} kool php artisan octane:start{!! $prod ? '' : ' --watch' !!}
+directory = /app
+priority = 10
 autorestart = true
 stopasgroup = true
+killasgroup = true
 stderr_logfile = /dev/stderr
 stdout_logfile = /dev/stdout
+stderr_logfile_maxbytes = 0
+stdout_logfile_maxbytes = 0

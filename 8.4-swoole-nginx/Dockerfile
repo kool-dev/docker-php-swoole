@@ -29,9 +29,7 @@ ENV PHP_FPM_LISTEN=/run/php-fpm.sock \
     NGINX_FASTCGI_BUFFER_SIZE='16k' \
     NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE=true
 
-RUN curl -L https://github.com/ochinchina/supervisord/releases/download/v0.6.3/supervisord_static_0.6.3_linux_amd64 -o /usr/local/bin/supervisord \
-    && chmod +x /usr/local/bin/supervisord \
-    && apk add --no-cache nginx \
+RUN apk add --no-cache nginx supervisor \
     && chown -R kool:kool /var/lib/nginx \
     && chmod 770 /var/lib/nginx/tmp \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -48,7 +46,7 @@ RUN curl -L https://github.com/ochinchina/supervisord/releases/download/v0.6.3/s
     && sed -i "s|^user .*|user\ kool kool;|g" /etc/nginx/nginx.conf \
     && mv server-configs-nginx-*/mime.types /etc/nginx/mime.types \
     && rm -rf server-configs-nginx-* \
-    && curl -L https://raw.githubusercontent.com/nginxinc/docker-nginx/master/entrypoint/30-tune-worker-processes.sh -o /kool/30-tune-worker-processes.sh \
+    && curl -fSL https://raw.githubusercontent.com/nginxinc/docker-nginx/master/entrypoint/30-tune-worker-processes.sh -o /kool/30-tune-worker-processes.sh \
     && chmod +x /kool/30-tune-worker-processes.sh
 
 COPY supervisor.conf /kool/supervisor.conf
