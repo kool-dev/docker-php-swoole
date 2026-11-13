@@ -50,6 +50,14 @@ Please refer to [kooldev/php](https://github.com/kool-dev/docker-php).
 
 ## Contributing
 
+### Release freshness
+
+PHP's scheduled rebuild sends `docker-php-updated` after publication to start a Swoole rebuild. Swoole has no separate cron schedule; manual workflow runs remain available for recovery. Builds explicitly pull parents. Main-branch releases share a concurrency group and are not canceled in progress; only superseded PR runs are canceled. GitHub may replace pending runs and does not promise FIFO ordering.
+
+After every Swoole publish matrix job succeeds, one bounded notification sends `docker-php-swoole-updated` to `kool-dev/docker-php-oci8`, allowing its Swoole-derived variants to rebuild after their parents. OCI8 must listen for this event and serialize its own releases; this chain does not trigger PHP again.
+
+The notification uses `DISPATCH_TOKEN`, falling back to `WORKFLOW_TOKEN`. The selected credential must permit repository dispatch to OCI8; secret presence alone does not verify access. Missing credentials or failed dispatches fail the notification job visibly, without undoing published images. The job summary distinguishes publication from notification; an accepted dispatch does not prove OCI8 completed. Investigate and retry a failed notification with a manual workflow run; there is no independent downstream schedule to mask a broken chain. This is not an atomic release or digest-pinned parent chain.
+
 ### Update images with templates
 
 Dockerfiles and configuration files are generated from `fwd-template.json` and the `template` folder. Make changes to these source files rather than the generated files.
