@@ -7,6 +7,8 @@ on:
   pull_request:
   repository_dispatch:
     types: [docker-php-updated]
+  schedule:
+    - cron: '23 6 * * 1'
 
 permissions:
   contents: read
@@ -40,6 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
+          pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
@@ -47,6 +50,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
+          pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
           build-contexts: |
@@ -104,6 +108,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
+          pull: true
           platforms: linux/amd64,linux/arm64
           push: true
           tags: kooldev/php:${{ matrix.version }}${{ matrix.type }}
@@ -112,6 +117,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
+          pull: true
           platforms: linux/amd64,linux/arm64
           push: true
           tags: kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
