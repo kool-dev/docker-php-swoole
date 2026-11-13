@@ -7,8 +7,6 @@ on:
   pull_request:
   repository_dispatch:
     types: [docker-php-updated]
-  schedule:
-    - cron: '23 6 * * 1'
 
 permissions:
   contents: read
