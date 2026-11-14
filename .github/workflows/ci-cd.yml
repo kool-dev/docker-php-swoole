@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
@@ -40,6 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
+          pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
@@ -47,6 +52,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
+          pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
           build-contexts: |
@@ -76,7 +82,7 @@ jobs:
 
   publish:
     needs: build
-    if: github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
     runs-on: ubuntu-latest
 
     strategy:
@@ -104,6 +110,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
+          pull: true
           platforms: linux/amd64,linux/arm64
           push: true
           tags: kooldev/php:${{ matrix.version }}${{ matrix.type }}
@@ -112,6 +119,43 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
+          pull: true
           platforms: linux/amd64,linux/arm64
           push: true
           tags: kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
+
+  dispatch:
+    needs: publish
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.WORKFLOW_TOKEN }}
+    steps:
+      - name: Check dispatch credential
+        id: credential
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Set DISPATCH_TOKEN or WORKFLOW_TOKEN with dispatch access to kool-dev/docker-php-oci8."
+            exit 1
+          fi
+
+      - name: Notify OCI8 after all Swoole tags are published
+        id: notify
+        run: |
+          gh api --method POST repos/kool-dev/docker-php-oci8/dispatches \
+            -f event_type=docker-php-swoole-updated
+
+      - name: Summarize publication and downstream notification
+        if: always()
+        env:
+          CREDENTIAL_OUTCOME: ${{ steps.credential.outcome }}
+          DISPATCH_OUTCOME: ${{ steps.notify.outcome }}
+        run: |
+          {
+            echo "### Swoole release propagation"
+            echo "- All Swoole publish matrix jobs: success."
+            echo "- Dispatch credential check: $CREDENTIAL_OUTCOME."
+            echo "- OCI8 docker-php-swoole-updated dispatch: $DISPATCH_OUTCOME."
+            echo "- Dispatch acceptance does not confirm OCI8 build or publication completion."
+          } >> "$GITHUB_STEP_SUMMARY"
