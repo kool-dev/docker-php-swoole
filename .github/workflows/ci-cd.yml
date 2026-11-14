@@ -67,7 +67,7 @@ jobs:
           driver-opts: network=host # needed to push to local registry
 
       - name: Build and export to Docker
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
           platforms: linux/${{ matrix.arch }}
@@ -77,7 +77,7 @@ jobs:
           tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
 
       - name: Build and export to Docker (nginx)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
           platforms: linux/${{ matrix.arch }}
