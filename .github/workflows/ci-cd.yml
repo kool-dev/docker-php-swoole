@@ -25,7 +25,7 @@ jobs:
           - 5000:5000
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Test release metadata and publication guards
         run: python3 -m unittest discover -s tasks -p 'test_release.py' -v
       - name: Test manifest promotion against a local registry
@@ -62,7 +62,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           driver-opts: network=host # needed to push to local registry
 
@@ -140,7 +140,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - uses: actions/download-artifact@v8.0.2
         with:
           pattern: swoole-${{ github.run_id }}-${{ github.run_attempt }}-*
