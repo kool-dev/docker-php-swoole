@@ -16,6 +16,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  workflow-tests:
+    runs-on: ubuntu-24.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Test release metadata and publication guards
+        run: python3 -m unittest discover -s tasks -p 'test_release.py' -v
+      - name: Test manifest promotion against a local registry
+        run: python3 tasks/test_release_registry.py
+      - name: Install actionlint
+        env:
+          GOBIN: ${{ runner.temp }}/actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Lint workflow
+        run: ${{ runner.temp }}/actionlint/actionlint
+
   build:
     runs-on: ${{ matrix.runner }}
 
@@ -29,7 +50,12 @@ jobs:
       matrix:
         version: ['8.2-swoole', '8.3-swoole', '8.4-swoole', '8.5-swoole', '8.4-debian-swoole', '8.5-debian-swoole']
         type: ['', '-prod']
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        arch: [amd64, arm64]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout code
@@ -44,6 +70,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}${{ matrix.type }}
+          platforms: linux/${{ matrix.arch }}
+          provenance: false
           pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
@@ -52,6 +80,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.version }}-nginx${{ matrix.type }}
+          platforms: linux/${{ matrix.arch }}
+          provenance: false
           pull: true
           push: true
           tags: localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
@@ -80,53 +110,52 @@ jobs:
           docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
           docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
 
-  publish:
-    needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        version: ['8.2-swoole', '8.3-swoole', '8.4-swoole', '8.5-swoole', '8.4-debian-swoole', '8.5-debian-swoole']
-        type: ['', '-prod']
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Login to DockerHub
+        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.version }}${{ matrix.type }}
-          pull: true
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: kooldev/php:${{ matrix.version }}${{ matrix.type }}
+      - name: Stage exact tested images
+        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+        env:
+          VERSION: ${{ matrix.version }}
+          TYPE: ${{ matrix.type }}
+          ARCH: ${{ matrix.arch }}
+        run: python3 tasks/release.py stage "$VERSION" "$TYPE" "$ARCH" release-metadata
 
-      - name: Build and push (nginx)
-        uses: docker/build-push-action@v6
+      - name: Upload immutable release metadata
+        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+        uses: actions/upload-artifact@v7.0.2
         with:
-          context: ${{ matrix.version }}-nginx${{ matrix.type }}
-          pull: true
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
+          name: swoole-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.version }}${{ matrix.type }}-${{ matrix.arch }}
+          path: release-metadata/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: [build, workflow-tests]
+    if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: swoole-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: release-metadata
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Preflight all digests and promote manifests only
+        run: python3 tasks/release.py promote release-metadata
 
   dispatch:
     needs: publish
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -154,7 +183,7 @@ jobs:
         run: |
           {
             echo "### Swoole release propagation"
-            echo "- All Swoole publish matrix jobs: success."
+            echo "- All 24 Swoole stable manifests: published successfully."
             echo "- Dispatch credential check: $CREDENTIAL_OUTCOME."
             echo "- OCI8 docker-php-swoole-updated dispatch: $DISPATCH_OUTCOME."
             echo "- Dispatch acceptance does not confirm OCI8 build or publication completion."
