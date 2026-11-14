@@ -24,7 +24,7 @@ jobs:
         ports:
           - 5000:5000
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
       - name: Test release metadata and publication guards
         run: python3 -m unittest discover -s tasks -p 'test_release.py' -v
@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -139,7 +139,7 @@ jobs:
     if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
       - uses: actions/download-artifact@v8.0.2
         with:
