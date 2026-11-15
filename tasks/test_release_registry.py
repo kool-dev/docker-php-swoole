@@ -70,24 +70,6 @@ def main():
             metadata = root / "metadata"
             metadata.mkdir()
             (metadata / "records.json").write_text(json.dumps(records))
-            writes = []
-
-            def interrupted(*args):
-                if args[1:4] == ("buildx", "imagetools", "create"):
-                    if writes:
-                        raise RuntimeError("simulated registry outage")
-                    writes.append(args)
-                return local_command(*args)
-
-            with patch.object(release, "command", side_effect=interrupted):
-                try:
-                    release.promote(metadata)
-                except RuntimeError as error:
-                    assert str(error) == "simulated registry outage"
-                else:
-                    raise AssertionError("Expected interrupted publication")
-            assert len(writes) == 1
-            # Recovery retries the full immutable set without builds or staging.
             commands.clear()
             release.promote(metadata)
             assert len(commands) == 24

@@ -67,13 +67,9 @@ class ReleaseTests(unittest.TestCase):
     def test_promotion_uses_validated_artifacts_without_remote_inspections(self):
         self.write()
         commands = []
-        platforms = {record["digest"]: record["arch"] for record in self.records}
 
         def docker(*args):
             commands.append(args)
-            if "inspect" in args:
-                digest = args[4].split("@")[1]
-                return json.dumps(dict(os="linux", architecture=platforms[digest]))
             return ""
 
         with patch.object(release, "command", side_effect=docker):
