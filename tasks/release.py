@@ -55,15 +55,13 @@ def stage(version, kind, arch, directory):
         command("docker", "tag", image_id, target)
         if command("docker", "image", "inspect", "--format", "{{.Id}}", target) != image_id:
             raise ValueError("Staging tag is not the tested image")
-        command("docker", "push", "--quiet", target)
-        descriptor = json.loads(command("docker", "buildx", "imagetools", "inspect",
-                                        target, "--format", "{{json .Manifest}}"))
-        digest = descriptor["digest"]
-        if not isinstance(digest, str) or not DIGEST.fullmatch(digest):
-            raise ValueError(f"Invalid pushed digest: {digest}")
+        output = command("docker", "push", target)
+        digests = re.findall(r"\bdigest: (sha256:[0-9a-f]{64})\b", output)
+        if len(digests) != 1:
+            raise ValueError("Push did not report exactly one registry digest")
         records.append(dict(repository=REPOSITORY, run_id=run, run_attempt=attempt,
                             tag=tag, arch=arch, staging_tag=staging,
-                            digest=digest, image_id=image_id))
+                            digest=digests[0], image_id=image_id, os=image["Os"]))
     path = Path(directory)
     path.mkdir(parents=True, exist_ok=True)
     (path / f"{version}{kind}-{arch}.json").write_text(json.dumps(records) + "\n")
@@ -78,11 +76,11 @@ def load_records(directory, run, attempt):
         for record in batch:
             if not isinstance(record, dict) or set(record) != {
                 "repository", "run_id", "run_attempt", "tag", "arch",
-                "staging_tag", "digest", "image_id"
+                "staging_tag", "digest", "image_id", "os"
             }:
                 raise ValueError("Malformed metadata")
             tag, arch = record["tag"], record["arch"]
-            if (record["repository"] != REPOSITORY
+            if (record["repository"] != REPOSITORY or record["os"] != "linux"
                     or record["run_id"] != run or record["run_attempt"] != attempt
                     or tag not in TAGS or arch not in ARCHES
                     or record["staging_tag"] != staging_tag(run, attempt, tag, arch)
@@ -103,13 +101,8 @@ def load_records(directory, run, attempt):
 def promote(directory):
     run, attempt = release_scope()
     records = load_records(directory, run, attempt)
-    # Resolve every immutable reference and platform before changing ANY stable tag.
-    for (tag, arch), record in records.items():
-        reference = f"{REPOSITORY}@{record['digest']}"
-        image = json.loads(command("docker", "buildx", "imagetools", "inspect",
-                                   reference, "--format", "{{json .Image}}"))
-        if image["architecture"] != arch or image["os"] != "linux":
-            raise ValueError(f"Wrong platform for {tag}/{arch}")
+    # Staging already checked the tested local ID/OS/architecture and recorded
+    # Docker's push digest. Trust this run's artifacts, not another registry GET.
     for tag in TAGS:
         command("docker", "buildx", "imagetools", "create", "--tag",
                 f"{REPOSITORY}:{tag}",

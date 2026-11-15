@@ -60,20 +60,38 @@ def main():
             assert all(record["image_id"] == ids["amd64"] for record in staged)
             assert all(record["digest"] == digests["amd64"] for record in staged)
             # Expand the two tiny native-config fixtures over the complete release
-            # shape. This tests real remote preflight and all stable manifest writes.
+            # shape. This tests all stable writes without redundant remote preflight.
             records = [
                 dict(repository=release.REPOSITORY, run_id="12345", run_attempt="2",
-                     tag=tag, arch=arch, digest=digests[arch], image_id=ids[arch],
+                     tag=tag, arch=arch, os="linux", digest=digests[arch], image_id=ids[arch],
                      staging_tag=release.staging_tag("12345", "2", tag, arch))
                 for tag in release.TAGS for arch in release.ARCHES
             ]
             metadata = root / "metadata"
             metadata.mkdir()
             (metadata / "records.json").write_text(json.dumps(records))
+            writes = []
+
+            def interrupted(*args):
+                if args[1:4] == ("buildx", "imagetools", "create"):
+                    if writes:
+                        raise RuntimeError("simulated registry outage")
+                    writes.append(args)
+                return local_command(*args)
+
+            with patch.object(release, "command", side_effect=interrupted):
+                try:
+                    release.promote(metadata)
+                except RuntimeError as error:
+                    assert str(error) == "simulated registry outage"
+                else:
+                    raise AssertionError("Expected interrupted publication")
+            assert len(writes) == 1
+            # Recovery retries the full immutable set without builds or staging.
             commands.clear()
             release.promote(metadata)
-            assert len(commands) == 72
-            assert all(cmd[3] == "inspect" for cmd in commands[:48])
+            assert len(commands) == 24
+            assert all(cmd[3] == "create" for cmd in commands)
             for tag in release.TAGS:
                 manifest = json.loads(original(
                     "docker", "buildx", "imagetools", "inspect",
