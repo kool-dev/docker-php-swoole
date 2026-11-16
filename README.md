@@ -54,9 +54,9 @@ Please refer to [kooldev/php](https://github.com/kool-dev/docker-php).
 
 PHP's scheduled rebuild sends `docker-php-updated` after publication to start a Swoole rebuild. Swoole has no separate cron schedule; manual workflow runs remain available for recovery. Builds explicitly pull parents. Main-branch releases share a concurrency group and are not canceled in progress; only superseded PR runs are canceled. GitHub may replace pending runs and does not promise FIFO ordering.
 
-The 24 native jobs use `ubuntu-24.04` for amd64 and `ubuntu-24.04-arm` for arm64. Each builds and tests a base/NGINX pair through a job-local registry; NGINX consumes that same job's fresh base. After all tests in a job pass, trusted main-branch runs retag those exact tested daemon images (without rebuilding) to `kooldev/php:ci-swoole-RUN_ID-RUN_ATTEMPT-VARIANT-ARCH`. PRs, forks, and manual feature-branch runs never log in, stage, publish, or notify OCI8.
+The 24 native jobs use `ubuntu-24.04` for amd64 and `ubuntu-24.04-arm` for arm64. Each builds and tests a base/NGINX pair using Docker's same-job local image store; NGINX never force-pulls a stale public base. A shared check verifies the tested base ID and full layer ancestry. After all runtime/Supervisor/dev tests pass, trusted main-branch runs stage those exact immutable IDs without rebuilding. PRs, forks, and manual feature-branch runs never log in, stage, publish, or notify OCI8.
 
-A single manifest-only job requires every native job and the workflow checks to succeed. It validates all 24 stable tags × both architectures, run/attempt scope, repository, unique tag/platform entries, digest format, and every remote digest's platform before updating any stable tag. Stable manifests reference the recorded immutable Docker Hub digests, never staging tag lookups or rebuilt images. Metadata artifacts are retained for seven days. There is no cross-tag transaction: a registry failure during promotion can still leave a partially updated release.
+CI uses [shared Bash/`jq` actions](https://github.com/kool-dev/action/blob/master/image-ci.md), pinned in the workflow. One publisher validates the complete 24-tag × two-architecture release before stable updates. Swoole builds, generation checks and runtime tests stay here.
 
 Recovery requires **Re-run all jobs**, not just failed jobs: artifacts and staging tags are scoped to the current run ID **and attempt**, and incomplete attempts fail closed. A new manual main-branch workflow run also rebuilds/tests the complete release. Do not combine artifacts from previous attempts.
 
@@ -64,7 +64,7 @@ Only after all 24 stable manifests succeed, one bounded notification sends `dock
 
 The notification uses `DISPATCH_TOKEN`, falling back to `WORKFLOW_TOKEN`. The selected credential must permit repository dispatch to OCI8; secret presence alone does not verify access. Missing credentials or failed dispatches fail the notification job visibly, without undoing published images. The job summary distinguishes publication from notification; an accepted dispatch does not prove OCI8 completed. Investigate and retry a failed notification with a manual workflow run; there is no independent downstream schedule to mask a broken chain. This is not an atomic release or digest-pinned parent chain.
 
-Release logic has offline coverage via `python3 -m unittest discover -s tasks -p 'test_release.py' -v`; CI also runs actionlint and `python3 tasks/test_release_registry.py` against a disposable local registry. The latter stages tiny scratch fixtures and verifies all 24 two-platform manifests without touching Docker Hub (set `RELEASE_TEST_REGISTRY=localhost:PORT` to use another local port). It does not execute ARM code. Native amd64/arm64 image tests remain required to validate the actual runtime images.
+Shared Bash contract and real loopback-registry tests live in the tooling repository. Here CI runs the real template generator and native image/Supervisor tests. Synthetic registry fixtures do not execute ARM application code.
 
 ### Update images with templates
 

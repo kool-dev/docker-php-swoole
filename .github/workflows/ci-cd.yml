@@ -1,5 +1,4 @@
 name: CI/CD
-
 on:
   push:
     branches: [main]
@@ -7,184 +6,131 @@ on:
   pull_request:
   repository_dispatch:
     types: [docker-php-updated]
-
 permissions:
   contents: read
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
-  workflow-tests:
+  checks:
     runs-on: ubuntu-24.04
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Test release metadata and publication guards
-        run: python3 -m unittest discover -s tasks -p 'test_release.py' -v
-      - name: Test manifest promotion against a local registry
-        run: python3 tasks/test_release_registry.py
-      - name: Install actionlint
-        env:
-          GOBIN: ${{ runner.temp }}/actionlint
-        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-      - name: Lint workflow
-        run: ${{ runner.temp }}/actionlint/actionlint
-
+      - uses: actions/checkout@v7
+      - name: Check generated contexts
+        run: |
+          docker run --rm -v "$PWD:/app" fireworkweb/fwd:v1.0 fwd template
+          git diff --exit-code
+      - id: tags
+        run: echo "tags=$(jq -c '[.builds[].name]' fwd-template.json)" >> "$GITHUB_OUTPUT"
   build:
-    runs-on: ${{ matrix.runner }}
-
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
-
+    needs: checks
+    runs-on: ${{ matrix.platform.runner }}
     strategy:
+      fail-fast: false
       matrix:
         version: ['8.2-swoole', '8.3-swoole', '8.4-swoole', '8.5-swoole', '8.4-debian-swoole', '8.5-debian-swoole']
         type: ['', '-prod']
-        arch: [amd64, arm64]
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-
+        platform:
+          - {arch: amd64, runner: ubuntu-24.04}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    env:
+      BASE: ${{ matrix.version }}${{ matrix.type }}
+      NGINX: ${{ matrix.version }}-nginx${{ matrix.type }}
+      ARCH: ${{ matrix.platform.arch }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - uses: kool-dev/action/image-build@6a6d04e8d1e1c66afc178e32c7d77d76169c7717
         with:
-          driver-opts: network=host # needed to push to local registry
-
-      - name: Build and export to Docker
-        uses: docker/build-push-action@v6
+          arch: ${{ env.ARCH }}
+      - name: Build fresh base
+        id: base
+        uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.version }}${{ matrix.type }}
-          platforms: linux/${{ matrix.arch }}
-          provenance: false
+          context: ${{ env.BASE }}
+          platforms: linux/${{ env.ARCH }}
           pull: true
-          push: true
-          tags: localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
-
-      - name: Build and export to Docker (nginx)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.version }}-nginx${{ matrix.type }}
-          platforms: linux/${{ matrix.arch }}
           provenance: false
-          pull: true
-          push: true
-          tags: localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
-          build-contexts: |
-            kooldev/php:${{ matrix.version }}${{ matrix.type }}=docker-image://localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }}
-
+          load: true
+          tags: kooldev/php:${{ env.BASE }}
+      - name: Build nginx from same-job base (never force-pull)
+        id: nginx
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ env.NGINX }}
+          platforms: linux/${{ env.ARCH }}
+          provenance: false
+          load: true
+          tags: kooldev/php:${{ env.NGINX }}
+      - uses: kool-dev/action/image-parent@6a6d04e8d1e1c66afc178e32c7d77d76169c7717
+        with:
+          base-ref: kooldev/php:${{ env.BASE }}
+          base-id: ${{ steps.base.outputs.imageid }}
+          image-id: ${{ steps.nginx.outputs.imageid }}
       - name: Tests
+        env:
+          BASE_ID: ${{ steps.base.outputs.imageid }}
+          NGINX_ID: ${{ steps.nginx.outputs.imageid }}
         run: |
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} php -r "exit(extension_loaded('swoole') ? 0 : 1);"
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -v
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} nginx -t
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} supervisord --version
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} dockerize --version
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} dockerize --version
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} sh -c 'echo "{{ .Env.TEST_VAR }}" > /tmp/test.tmpl && TEST_VAR=hello dockerize -template /tmp/test.tmpl:/tmp/test.out && test "$(cat /tmp/test.out)" = hello'
-          docker run --rm -e ASUSER=1000 localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} php -r "exit(posix_getuid() === 1000 ? 0 : 1);"
-
-      - name: Test Supervisor lifecycle
-        run: bash tasks/test-supervisor.sh localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }}
-
+          docker run --rm "$BASE_ID" php -r "exit(extension_loaded('swoole') ? 0 : 1);"
+          docker run --rm "$NGINX_ID" nginx -v
+          docker run --rm "$NGINX_ID" nginx -t
+          docker run --rm "$NGINX_ID" supervisord --version
+          docker run --rm "$BASE_ID" dockerize --version
+          docker run --rm "$NGINX_ID" dockerize --version
+          docker run --rm "$BASE_ID" sh -c 'echo "{{ .Env.TEST_VAR }}" > /tmp/test.tmpl && TEST_VAR=hello dockerize -template /tmp/test.tmpl:/tmp/test.out && test "$(cat /tmp/test.out)" = hello'
+          docker run --rm -e ASUSER=1000 "$NGINX_ID" php -r "exit(posix_getuid() === 1000 ? 0 : 1);"
+          bash tasks/test-supervisor.sh "$NGINX_ID"
       - name: Tests (dev)
         if: matrix.type == ''
+        env:
+          BASE_ID: ${{ steps.base.outputs.imageid }}
+          NGINX_ID: ${{ steps.nginx.outputs.imageid }}
         run: |
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} node -v
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}${{ matrix.type }} yarn -v
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} node -v
-          docker run --rm localhost:5000/kooldev/php:${{ matrix.version }}-nginx${{ matrix.type }} yarn -v
-
-      - name: Login to DockerHub
-        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
-        uses: docker/login-action@v3
+          docker run --rm "$BASE_ID" node -v
+          docker run --rm "$BASE_ID" yarn -v
+          docker run --rm "$NGINX_ID" node -v
+          docker run --rm "$NGINX_ID" yarn -v
+      - uses: kool-dev/action/image-stage@6a6d04e8d1e1c66afc178e32c7d77d76169c7717
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
         with:
+          canonical-repository: kool-dev/docker-php-swoole
+          default-branch: main
+          repository: kooldev/php
+          arch: ${{ env.ARCH }}
+          group: ${{ env.BASE }}
+          images: >-
+            [{"tag":"${{ env.BASE }}","id":"${{ steps.base.outputs.imageid }}"},
+             {"tag":"${{ env.NGINX }}","id":"${{ steps.nginx.outputs.imageid }}"}]
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Stage exact tested images
-        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
-        env:
-          VERSION: ${{ matrix.version }}
-          TYPE: ${{ matrix.type }}
-          ARCH: ${{ matrix.arch }}
-        run: python3 tasks/release.py stage "$VERSION" "$TYPE" "$ARCH" release-metadata
-
-      - name: Upload immutable release metadata
-        if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: swoole-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.version }}${{ matrix.type }}-${{ matrix.arch }}
-          path: release-metadata/*.json
-          if-no-files-found: error
-          retention-days: 7
-
   publish:
-    needs: [build, workflow-tests]
-    if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    needs: [checks, build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: actions/download-artifact@v8.0.2
+      - uses: kool-dev/action/image-publish@6a6d04e8d1e1c66afc178e32c7d77d76169c7717
         with:
-          pattern: swoole-${{ github.run_id }}-${{ github.run_attempt }}-*
-          path: release-metadata
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
+          canonical-repository: kool-dev/docker-php-swoole
+          default-branch: main
+          repository: kooldev/php
+          tags: ${{ needs.checks.outputs.tags }}
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Preflight all digests and promote manifests only
-        run: python3 tasks/release.py promote release-metadata
-
   dispatch:
     needs: publish
-    if: contains(fromJSON('["push", "workflow_dispatch", "repository_dispatch"]'), github.event_name) && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
-    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.repository == 'kool-dev/docker-php-swoole'
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
-    env:
-      GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.WORKFLOW_TOKEN }}
     steps:
-      - name: Check dispatch credential
-        id: credential
+      - name: Notify OCI8 after complete publication
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN || secrets.WORKFLOW_TOKEN }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::Set DISPATCH_TOKEN or WORKFLOW_TOKEN with dispatch access to kool-dev/docker-php-oci8."
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Configure DISPATCH_TOKEN or WORKFLOW_TOKEN for OCI8 dispatch."
             exit 1
           fi
-
-      - name: Notify OCI8 after all Swoole tags are published
-        id: notify
-        run: |
-          gh api --method POST repos/kool-dev/docker-php-oci8/dispatches \
-            -f event_type=docker-php-swoole-updated
-
-      - name: Summarize publication and downstream notification
-        if: always()
-        env:
-          CREDENTIAL_OUTCOME: ${{ steps.credential.outcome }}
-          DISPATCH_OUTCOME: ${{ steps.notify.outcome }}
-        run: |
-          {
-            echo "### Swoole release propagation"
-            echo "- All 24 Swoole stable manifests: published successfully."
-            echo "- Dispatch credential check: $CREDENTIAL_OUTCOME."
-            echo "- OCI8 docker-php-swoole-updated dispatch: $DISPATCH_OUTCOME."
-            echo "- Dispatch acceptance does not confirm OCI8 build or publication completion."
-          } >> "$GITHUB_STEP_SUMMARY"
+          gh api --method POST repos/kool-dev/docker-php-oci8/dispatches -f event_type=docker-php-swoole-updated
+          echo "- OCI8: dispatch accepted (not downstream completion)." >> "$GITHUB_STEP_SUMMARY"
