@@ -56,11 +56,9 @@ PHP's scheduled rebuild sends `docker-php-updated` after publication to start a 
 
 The 24 native jobs use `ubuntu-24.04` for amd64 and `ubuntu-24.04-arm` for arm64. Each builds and tests a base/NGINX pair using Docker's same-job local image store; NGINX never force-pulls a stale public base. A shared check verifies the tested base ID and full layer ancestry. After all runtime/Supervisor/dev tests pass, trusted main-branch runs stage those exact immutable IDs without rebuilding. PRs, forks, and manual feature-branch runs never log in, stage, publish, or notify OCI8.
 
-All image repos share Bash/`jq` actions and a reusable publisher in [kool-dev/action](https://github.com/kool-dev/action/blob/master/image-ci.md), pinned to one immutable commit. Image-specific builds/tests stay here; no Python release tooling is required. The publisher requires every native job and generation checks to succeed, then validates all 24 tags × both architectures, run/attempt scope, repository, unique entries, tested IDs/platforms and digests before any stable update. It trusts staging's local ID/platform checks and Docker push digests, avoiding redundant remote inspections. Artifacts are retained for seven days; stable updates remain sequential, not atomic.
+CI uses [shared Bash/`jq` actions](https://github.com/kool-dev/action/blob/master/image-ci.md), pinned in the workflow. One publisher validates the complete 24-tag × two-architecture release before stable updates. Swoole builds, generation checks and runtime tests stay here.
 
 Recovery requires **Re-run all jobs**, not just failed jobs: artifacts and staging tags are scoped to the current run ID **and attempt**, and incomplete attempts fail closed. A new manual main-branch workflow run also rebuilds/tests the complete release. Do not combine artifacts from previous attempts.
-
-Manifest assembly still reads Docker Hub and consumes pull allowance; these changes reduce requests, not eliminate limits. Publication uses the existing Docker driver rather than booting another BuildKit container.
 
 Only after all 24 stable manifests succeed, one bounded notification sends `docker-php-swoole-updated` to `kool-dev/docker-php-oci8`, allowing its Swoole-derived variants to rebuild after their parents. OCI8 must listen for this event and serialize its own releases; this chain does not trigger PHP again.
 
